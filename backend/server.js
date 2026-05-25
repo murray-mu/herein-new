@@ -11,7 +11,6 @@ app.use(express.json({ limit: "10mb" }));
 
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
 });
 
 app.post("/api/generate-image", async (req, res) => {
@@ -26,10 +25,20 @@ app.post("/api/generate-image", async (req, res) => {
       model: "gpt-image-2",
       prompt,
       size: "1024x1024",
-      response_format: "b64_json",
     });
 
-    const imageBase64 = result.data[0].b64_json;
+    const imageUrl = result.data[0].url;
+    if (!imageUrl) {
+      throw new Error("No image URL returned from API");
+    }
+
+    // 3. 在后端将图片 URL 转换为 Base64 字符串
+    const response = await fetch(imageUrl);
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`);
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const imageBase64 = buffer.toString('base64');
 
     res.json({ image: imageBase64 });
   } catch (err) {
