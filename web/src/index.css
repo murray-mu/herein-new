@@ -1,23 +1,107 @@
 @import "tailwindcss";
 
+/* === Design Tokens === */
+:root {
+  /* Color — dark editorial palette */
+  --color-bg-primary: #121212;
+  --color-bg-surface: #1a1a1c;
+  --color-bg-elevated: #222225;
+  --color-border: #27272a;
+  --color-border-active: #52525b;
+  --color-text-primary: #f4f4f5;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+  --color-accent: #f59e0b;
+  --color-accent-soft: #78350f;
+  --color-success: #059669;
+  --color-error: #dc2626;
+
+  /* Typography — Noto Serif SC for brand/headings, Inter for body, JetBrains Mono for metadata */
+  --font-serif: 'Noto Serif SC', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Type scale — minimum 11px */
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  /* Spacing */
+  --space-page: 1.5rem;
+  --space-section: 3rem;
+  --space-card-padding: 1.5rem;
+}
+
+/* === Tailwind theme mapping === */
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Noto Serif SC', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* === Base === */
 html, body, #root {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+/* === Animations === */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-out;
+@keyframes fadeInSlow {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn { animation: fadeIn 0.5s ease-out; }
+.animate-fadeInSlow { animation: fadeInSlow 0.8s ease-out; }
+.animate-pulseSoft { animation: pulse-soft 2s ease-in-out infinite; }
+.animate-scaleIn { animation: scaleIn 0.3s ease-out; }
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #1a1a1c 25%, #222225 50%, #1a1a1c 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* === Focus ring — accessibility === */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* === Scrollbar === */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--color-bg-primary); }
+::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #52525b; }
