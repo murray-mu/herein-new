@@ -23,37 +23,23 @@ app.post("/api/generate-image", async (req, res) => {
   }
 
   const jobId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const job = { id: jobId, done: false, images: [], error: null };
+  const job = { id: jobId, done: false, image: null, error: null };
   jobs.set(jobId, job);
 
   // Fire and forget — generates in background
   (async () => {
     try {
-      // OpenAI JS SDK returns raw SSE text for image streaming (not async iterable)
-      const sseText = await openai.images.generate({
-        prompt,
+      const result = await openai.images.generate({
         model: "gpt-image-2",
-        stream: true,
-        partial_images: 2,
+        prompt,
       });
 
-      // Parse SSE: split by "data:" lines, extract JSON, collect b64_json
-      let imageIndex = 0;
-      const lines = sseText.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          try {
-            const parsed = JSON.parse(line.slice(6));
-            if (parsed.type === 'image_generation.partial_image' && parsed.b64_json) {
-              job.images[imageIndex] = parsed.b64_json;
-              imageIndex++;
-            }
-          } catch {
-            // skip unparseable lines
-          }
-        }
+      const imageBase64 = result.data[0].b64_json;
+      if (!imageBase64) {
+        throw new Error("No b64_json returned from API");
       }
 
+      job.image = imageBase64;
       job.done = true;
     } catch (err) {
       console.error("Image generation failed:", err);
@@ -75,7 +61,7 @@ app.get("/api/generate-image/:jobId", (req, res) => {
   }
   res.json({
     done: job.done,
-    images: job.images.filter(Boolean),
+    image: job.image,
     error: job.error,
   });
 });

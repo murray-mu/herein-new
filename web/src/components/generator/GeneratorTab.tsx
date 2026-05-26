@@ -115,7 +115,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
         const pollRes = await fetch(`/api/generate-image/${jobId}`);
         if (!pollRes.ok) throw new Error('Polling failed');
         const job = await pollRes.json();
-        if (job.images.length > 0) setGeneratedImages([...job.images]);
+        if (job.image) setGeneratedImages([job.image]);
         if (job.done) {
           if (job.error) throw new Error(job.error);
           break;
@@ -241,7 +241,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
               <button onClick={handleGenerateImage} disabled={generatingImage}
                 className="px-4 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-colors flex items-center gap-2 disabled:opacity-50 min-h-[44px]">
                 <Sparkles className="h-4 w-4" />
-                {generatingImage ? `生成中 (${generatedImages.length}/2)...` : '生成图片'}
+                {generatingImage ? '生成中...' : '生成图片'}
               </button>
               <button onClick={handleCopyPrompt}
                 className="px-4 py-2.5 rounded bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-medium text-zinc-300 transition-colors flex items-center gap-1.5 min-h-[44px]">
@@ -277,9 +277,6 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
               <h4 className="text-sm font-semibold text-white tracking-wider flex items-center gap-2">
                 <ImageIcon className="h-4 w-4 text-amber-400" />
                 AI 生成结果
-                {generatingImage && (
-                  <span className="text-[11px] font-normal text-amber-400 ml-2">({generatedImages.length} / 2)</span>
-                )}
               </h4>
 
               {generatingImage && generatedImages.length === 0 && (
@@ -289,44 +286,32 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
                 </div>
               )}
 
-              {generatingImage && generatedImages.length > 0 && (
-                <div className="space-y-3">
-                  <p className="text-xs text-zinc-500 text-center">正在逐步渲染更高质量图片... ({generatedImages.length}/2)</p>
-                </div>
-              )}
-
               {imageError && <ErrorState message={imageError} onRetry={handleGenerateImage} />}
 
-              {generatedImages.filter(Boolean).length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {generatedImages.map((img, idx) => img ? (
-                    <div key={idx} className="space-y-3">
-                      <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
-                        <span className="px-1.5 py-0.5 rounded bg-zinc-800 text-amber-300 text-[11px]">第 {idx + 1} 步</span>
-                        <span>渐进式渲染</span>
-                      </div>
-                      <button
-                        onClick={() => setPreviewImage({ src: `data:image/png;base64,${img}`, index: idx })}
-                        className="w-full group relative overflow-hidden rounded-lg border border-zinc-800 hover:border-zinc-600 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
-                      >
-                        <img
-                          src={`data:image/png;base64,${img}`}
-                          alt={`AI生成城市影像 步骤${idx + 1}`}
-                          className="w-full object-contain group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white font-medium bg-zinc-900/80 px-3 py-1.5 rounded-full">
-                            点击预览
-                          </span>
-                        </div>
-                      </button>
-                      <button onClick={() => handleDownloadImage(img, idx)}
-                        className="w-full py-2 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-400 transition-colors flex items-center justify-center gap-1.5 min-h-[44px]">
-                        <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                        下载图片
-                      </button>
+              {generatedImages[0] && (
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setPreviewImage({ src: `data:image/png;base64,${generatedImages[0]}`, index: 0 })}
+                    className="w-full group relative overflow-hidden rounded-lg border border-zinc-800 hover:border-zinc-600 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
+                  >
+                    <img
+                      src={`data:image/png;base64,${generatedImages[0]}`}
+                      alt="AI生成城市影像"
+                      className="w-full object-contain group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white font-medium bg-zinc-900/80 px-3 py-1.5 rounded-full">
+                        点击预览
+                      </span>
                     </div>
-                  ) : null)}
+                  </button>
+                  <div className="flex justify-center">
+                    <button onClick={() => handleDownloadImage(generatedImages[0], 0)}
+                      className="px-5 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-colors flex items-center gap-2">
+                      <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      下载图片
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
