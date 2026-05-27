@@ -4,11 +4,25 @@ import ExperienceTab from './components/experience/ExperienceTab';
 import GeneratorTab from './components/generator/GeneratorTab';
 import PracticeTab from './components/practice/PracticeTab';
 import ManifestoTab from './components/manifesto/ManifestoTab';
+import AssetPanel from './components/asset/AssetPanel';
+import GalleryTab from './components/gallery/GalleryTab';
 
-export default function App() {
+interface AuthUser {
+  id: number;
+  username: string;
+  displayName: string;
+  city: string | null;
+}
+
+interface Props {
+  token: string;
+  user: AuthUser;
+  onLogout: () => void;
+}
+
+export default function App({ token, user, onLogout }: Props) {
   const [activeTab, setActiveTab] = useState('experience');
 
-  // Bridge state: when user clicks "make card from this scene" in experience tab
   const [generatorPreset, setGeneratorPreset] = useState({
     title: '下班后的便利店',
     details: [
@@ -22,7 +36,6 @@ export default function App() {
     time: '夜里11点'
   });
 
-  // Practice progress — persisted in localStorage
   const [practiceProgress, setPracticeProgress] = useState<Record<number, boolean>>(() => {
     try {
       const saved = localStorage.getItem('herein-practice-progress');
@@ -44,7 +57,7 @@ export default function App() {
   };
 
   return (
-    <AppShell activeTab={activeTab} onTabChange={setActiveTab}>
+    <AppShell activeTab={activeTab} onTabChange={setActiveTab} username={user.displayName || user.username} onLogout={onLogout}>
       {activeTab === 'experience' && (
         <ExperienceTab onMakeCard={handleMakeCard} />
       )}
@@ -55,6 +68,7 @@ export default function App() {
           initialDetails={generatorPreset.details}
           initialCity={generatorPreset.city}
           initialTime={generatorPreset.time}
+          token={token}
         />
       )}
       {activeTab === 'practice' && (
@@ -62,6 +76,12 @@ export default function App() {
       )}
       {activeTab === 'manifesto' && (
         <ManifestoTab />
+      )}
+      {activeTab === 'asset' && (
+        <AssetPanel userId={user.id} token={token} />
+      )}
+      {activeTab === 'gallery' && (
+        <GalleryTab token={token} />
       )}
     </AppShell>
   );

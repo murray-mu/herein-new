@@ -6,20 +6,17 @@ interface AppShellProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   children: ReactNode;
+  username: string;
+  onLogout: () => void;
 }
 
-export default function AppShell({ activeTab, onTabChange, children }: AppShellProps) {
+export default function AppShell({ activeTab, onTabChange, children, username, onLogout }: AppShellProps) {
   return (
     <div className="flex min-h-screen bg-[#121212] text-zinc-100 font-sans antialiased selection:bg-zinc-700 selection:text-white">
-      {/* Desktop sidebar */}
-      <Sidebar activeTab={activeTab} onTabChange={onTabChange} />
-
-      {/* Main content */}
+      <Sidebar activeTab={activeTab} onTabChange={onTabChange} username={username} onLogout={onLogout} />
       <main className="flex-1 min-w-0 pb-20 lg:pb-0" id="main-content">
         {children}
       </main>
-
-      {/* Mobile bottom bar */}
       <BottomTabBar activeTab={activeTab} onTabChange={onTabChange} />
     </div>
   );

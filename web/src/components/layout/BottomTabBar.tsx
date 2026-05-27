@@ -1,4 +1,4 @@
-import { MapPin, Sparkles, BookOpen, FileText } from 'lucide-react';
+import { MapPin, Sparkles, BookOpen, Gem, Images } from 'lucide-react';
 
 interface BottomTabBarProps {
   activeTab: string;
@@ -9,13 +9,14 @@ const tabs = [
   { id: 'experience', label: '体验', icon: MapPin },
   { id: 'generator', label: '卡片', icon: Sparkles },
   { id: 'practice', label: '训练', icon: BookOpen },
-  { id: 'manifesto', label: '宣言', icon: FileText },
+  { id: 'gallery', label: '图库', icon: Images },
+  { id: 'asset', label: '资产', icon: Gem },
 ];
 
 export default function BottomTabBar({ activeTab, onTabChange }: BottomTabBarProps) {
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-[#0f0f10]/95 backdrop-blur-md border-t border-zinc-800/60 safe-area-bottom" aria-label="Mobile navigation">
-      <div className="flex justify-around items-center h-16 px-2">
+      <div className="flex justify-around items-center h-16 px-1">
         {tabs.map(tab => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -23,7 +24,7 @@ export default function BottomTabBar({ activeTab, onTabChange }: BottomTabBarPro
             <button
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
-              className={`flex flex-col items-center justify-center gap-1 min-w-0 px-2 py-1 rounded-lg transition-colors min-h-[44px] ${
+              className={`flex flex-col items-center justify-center gap-1 min-w-0 px-1 py-1 rounded-lg transition-colors min-h-[44px] ${
                 active ? 'text-amber-300' : 'text-zinc-500 hover:text-zinc-300'
               }`}
               aria-current={active ? 'page' : undefined}

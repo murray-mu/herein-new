@@ -14,6 +14,7 @@ interface GeneratorTabProps {
   initialDetails?: string[];
   initialCity?: string;
   initialTime?: string;
+  token: string;
 }
 
 export default function GeneratorTab({ initialTitle = '下班后的便利店', initialDetails = [
@@ -22,7 +23,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
   '关东煮的汤汁咕嘟咕嘟响',
   '收银员正在小声打着哈欠',
   '门外霓虹灯在积水里碎成一地金黄'
-], initialCity = '大连', initialTime = '夜里11点' }: GeneratorTabProps) {
+], initialCity = '大连', initialTime = '夜里11点', token }: GeneratorTabProps) {
   // Card type + step
   const [activeCardType, setActiveCardType] = useState('content');
   const [currentStep, setCurrentStep] = useState(1);
@@ -43,9 +44,9 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
   const [imageError, setImageError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; index: number } | null>(null);
 
-  // Clipboard
-  const [promptCopied, setPromptCopied] = useState(false);
+  // Toast
   const [toastMsg, setToastMsg] = useState('');
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const handleAddDetail = () => {
     if (newDetail.trim() && sceneDetails.length < 6) {
@@ -103,19 +104,25 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
       const prompts = generateAIPrompt();
       const res = await fetch('/api/generate-image', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ prompt: prompts.english }),
       });
       if (!res.ok) throw new Error('Failed to start generation');
       const { jobId } = await res.json();
 
+      let imagePath = '';
       let timeout = 0;
       while (timeout < 240) {
         await new Promise(r => setTimeout(r, 2000));
-        const pollRes = await fetch(`/api/generate-image/${jobId}`);
+        const pollRes = await fetch(`/api/generate-image/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         if (!pollRes.ok) throw new Error('Polling failed');
         const job = await pollRes.json();
-        if (job.image) setGeneratedImages([job.image]);
+        if (job.imagePath) {
+          imagePath = job.imagePath;
+          setGeneratedImages([job.imagePath]);
+        }
         if (job.done) {
           if (job.error) throw new Error(job.error);
           break;
@@ -123,6 +130,33 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
         timeout++;
       }
       if (timeout >= 240) throw new Error('Generation timed out');
+
+      // Auto-save to archive
+      if (imagePath) {
+        try {
+          const saveRes = await fetch('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              title: sceneTitle,
+              city,
+              timePeriod,
+              cardType: activeCardType,
+              sceneDetails,
+              stylePreset: selectedStyle,
+              aiPromptEn: prompts.english,
+              aiPromptCn: prompts.chinese,
+              imagePath,
+              isPublic: true,
+              isCollectible: false,
+            }),
+          });
+          if (saveRes.ok) {
+            const data = await saveRes.json();
+            setToastMsg(`已自动保存到档案 · ${data.assetId}`);
+          }
+        } catch { /* save failure is non-fatal — image is still shown */ }
+      }
     } catch (err) {
       setImageError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -130,10 +164,10 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
     }
   };
 
-  const handleDownloadImage = (base64: string, index?: number) => {
+  const handleDownloadImage = (imageSrc: string) => {
     const link = document.createElement('a');
-    link.href = `data:image/png;base64,${base64}`;
-    link.download = `herein-${activeCardType}${index !== undefined ? `-step${index + 1}` : ''}-${Date.now()}.png`;
+    link.href = imageSrc.startsWith('data:') ? imageSrc : imageSrc;
+    link.download = `herein-${activeCardType}-${Date.now()}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -291,11 +325,11 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
               {generatedImages[0] && (
                 <div className="space-y-4">
                   <button
-                    onClick={() => setPreviewImage({ src: `data:image/png;base64,${generatedImages[0]}`, index: 0 })}
+                    onClick={() => setPreviewImage({ src: generatedImages[0].startsWith('/uploads/') ? generatedImages[0] : `data:image/png;base64,${generatedImages[0]}`, index: 0 })}
                     className="w-full group relative overflow-hidden rounded-lg border border-zinc-800 hover:border-zinc-600 transition-colors focus-visible:ring-2 focus-visible:ring-amber-400"
                   >
                     <img
-                      src={`data:image/png;base64,${generatedImages[0]}`}
+                      src={generatedImages[0].startsWith('/uploads/') ? generatedImages[0] : `data:image/png;base64,${generatedImages[0]}`}
                       alt="AI生成城市影像"
                       className="w-full object-contain group-hover:scale-105 transition-transform duration-300"
                     />
@@ -306,7 +340,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
                     </div>
                   </button>
                   <div className="flex justify-center">
-                    <button onClick={() => handleDownloadImage(generatedImages[0], 0)}
+                    <button onClick={() => handleDownloadImage(generatedImages[0])}
                       className="px-5 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-colors flex items-center gap-2">
                       <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                       下载图片
@@ -325,7 +359,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
           src={previewImage.src}
           alt={`AI生成城市影像 步骤${previewImage.index + 1}`}
           onClose={() => setPreviewImage(null)}
-          onDownload={() => handleDownloadImage(generatedImages[previewImage.index], previewImage.index)}
+          onDownload={() => handleDownloadImage(generatedImages[previewImage.index])}
         />
       )}
     </div>
