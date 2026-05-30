@@ -1,10 +1,11 @@
-import { MapPin, Sparkles, BookOpen, FileText, Archive, Images, LogOut } from 'lucide-react';
+import { MapPin, Sparkles, BookOpen, FileText, Archive, Images, LogOut, Shield } from 'lucide-react';
 import BrandMark from '../shared/BrandMark';
 
 interface SidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   username: string;
+  isAdmin: boolean;
   onLogout: () => void;
 }
 
@@ -17,7 +18,7 @@ const tabs = [
   { id: 'asset', label: '我的此间资产', icon: Archive },
 ];
 
-export default function Sidebar({ activeTab, onTabChange, username, onLogout }: SidebarProps) {
+export default function Sidebar({ activeTab, onTabChange, username, isAdmin, onLogout }: SidebarProps) {
   return (
     <aside className="w-60 h-screen sticky top-0 flex flex-col bg-[#0f0f10] border-r border-zinc-800/60 px-4 py-6 hidden lg:flex">
       <div className="flex flex-col items-center gap-3 pb-6 border-b border-zinc-800/40">
@@ -52,6 +53,15 @@ export default function Sidebar({ activeTab, onTabChange, username, onLogout }: 
       </nav>
 
       <div className="pt-4 border-t border-zinc-800/40 space-y-2">
+        {isAdmin && (
+          <a
+            href="/admin"
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-amber-300 hover:bg-amber-950/20 transition-colors"
+          >
+            <Shield className="h-3.5 w-3.5" />
+            后台管理
+          </a>
+        )}
         <button
           onClick={onLogout}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40 transition-colors"

@@ -12,6 +12,7 @@ interface AuthUser {
   username: string;
   displayName: string;
   city: string | null;
+  isAdmin?: boolean;
 }
 
 interface Props {
@@ -57,7 +58,7 @@ export default function App({ token, user, onLogout }: Props) {
   };
 
   return (
-    <AppShell activeTab={activeTab} onTabChange={setActiveTab} username={user.displayName || user.username} onLogout={onLogout}>
+    <AppShell activeTab={activeTab} onTabChange={setActiveTab} username={user.displayName || user.username} isAdmin={!!user.isAdmin} onLogout={onLogout}>
       {activeTab === 'experience' && (
         <ExperienceTab onMakeCard={handleMakeCard} />
       )}

@@ -14,9 +14,8 @@ React + TypeScript + Vite frontend with Express backend. AI-powered city observa
 cd web && npm run dev     # Vite dev server
 cd web && npm run build   # TypeScript + Vite production build
 
-# Backend
-cd backend && npm run dev  # Express server on :3001
-```
+# BackendP  # Express server on :3001
+pm2 restart herein-dev  # Express server on :3001
 
 ## Skill routing
 

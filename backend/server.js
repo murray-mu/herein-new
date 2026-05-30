@@ -2,11 +2,13 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
+import { GoogleGenAI } from "@google/genai";
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import pool from "./db.js";
 import authRoutes, { requireAuth } from "./routes/auth.js";
+import adminRoutes, { getActiveModel } from "./routes/admin.js";
 
 dotenv.config();
 
@@ -16,16 +18,130 @@ const UPLOADS_DIR = path.join(__dirname, "uploads");
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 // Auth routes (public)
 app.use("/api/auth", authRoutes);
+
+// Admin routes
+app.use("/api/admin", adminRoutes);
+
+// Public prompt templates (for GeneratorTab)
+app.get("/api/prompt-templates", requireAuth, async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      "SELECT * FROM prompt_templates WHERE is_active = TRUE ORDER BY sort_order"
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error("List templates error:", err);
+    res.status(500).json({ error: "failed to load templates" });
+  }
+});
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const googleAI = new GoogleGenAI({
+  apiKey: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "",
+});
+
 // In-memory job store
 const jobs = new Map();
+
+// ─── Provider Adapters ────────────────────────────────────────────
+
+async function generateOpenAI(prompt, config) {
+  const params = typeof config.parameters === "string"
+    ? JSON.parse(config.parameters)
+    : (config.parameters || {});
+  const result = await openai.images.generate({
+    model: config.model_id,
+    prompt,
+    n: params.n || 1,
+    size: params.size || "1024x1024",
+    response_format: params.response_format || "b64_json",
+  });
+  const imageBase64 = result.data[0]?.b64_json;
+  if (!imageBase64) throw new Error("OpenAI returned no image");
+  return imageBase64;
+}
+
+async function generateFlux(prompt, config) {
+  const params = typeof config.parameters === "string"
+    ? JSON.parse(config.parameters)
+    : (config.parameters || {});
+  const payload = {
+    prompt,
+    mode: params.mode || "base",
+    cfg_scale: params.cfg_scale || 3.5,
+    width: params.width || 1024,
+    height: params.height || 1024,
+    seed: params.seed || 0,
+    steps: params.steps || 50,
+  };
+  const response = await fetch(config.api_endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${process.env.NVIDIA_API_KEY}`,
+      "Accept": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+  if (response.status !== 200) {
+    const errBody = await response.text();
+    throw new Error(`Flux invocation failed: ${response.status} ${errBody}`);
+  }
+  const body = await response.json();
+  const imageBase64 = body.images?.[0];
+  if (!imageBase64) throw new Error("Flux returned no image");
+  return imageBase64;
+}
+
+async function generateGemini(prompt, config) {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY || "",
+  });
+  const response = await ai.models.generateContent({
+    model: config.model_id,
+    contents: prompt,
+  });
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
+    if (part.inlineData) {
+      return part.inlineData.data;
+    }
+  }
+  throw new Error("Gemini returned no image");
+}
+
+const PROVIDERS = {
+  openai: generateOpenAI,
+  nvidia: generateFlux,
+  google: generateGemini,
+};
+
+async function dispatchImageGeneration(prompt) {
+  const model = await getActiveModel();
+  if (!model) throw new Error("No active image generation model configured");
+  const generate = PROVIDERS[model.provider];
+  if (!generate) throw new Error(`Unknown provider: ${model.provider}`);
+  return generate(prompt, model);
+}
+
+// ─── Active Model Info (public) ──────────────────────────────────
+
+app.get("/api/active-model", async (_req, res) => {
+  try {
+    const model = await getActiveModel();
+    if (!model) return res.json({ name: null, provider: null });
+    res.json({ name: model.name, provider: model.provider, model_id: model.model_id });
+  } catch (err) {
+    console.error("Active model error:", err);
+    res.status(500).json({ error: "failed to get active model" });
+  }
+});
 
 // ─── Image Generation ────────────────────────────────────────────
 
@@ -41,12 +157,7 @@ app.post("/api/generate-image", requireAuth, async (req, res) => {
 
   (async () => {
     try {
-      const result = await openai.images.generate({
-        model: "gpt-image-2",
-        prompt,
-      });
-      const imageBase64 = result.data[0].b64_json;
-      if (!imageBase64) throw new Error("No b64_json returned from API");
+      const imageBase64 = await dispatchImageGeneration(prompt);
 
       // Save to filesystem
       const userDir = path.join(UPLOADS_DIR, String(req.userId));

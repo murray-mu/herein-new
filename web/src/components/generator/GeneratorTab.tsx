@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BookImage, FileText, Bookmark, Image as ImageIcon, Sparkles, Copy } from 'lucide-react';
-import { stylePresets } from '../../constants/stylePresets';
 import StepIndicator from './StepIndicator';
 import ContentForm from './ContentForm';
 import LivePreview from './LivePreview';
@@ -8,6 +7,19 @@ import ErrorState from '../shared/ErrorState';
 import { CardSkeleton } from '../shared/LoadingSkeleton';
 import Toast from '../shared/Toast';
 import ImagePreview from '../shared/ImagePreview';
+import { stylePresets } from '../../constants/stylePresets';
+
+interface PromptTemplate {
+  id: number;
+  template_key: string;
+  name: string;
+  english_keywords: string;
+  chinese_keywords: string;
+  color_tone: string;
+  card_type: string;
+  sort_order: number;
+  is_active: number;
+}
 
 interface GeneratorTabProps {
   initialTitle?: string;
@@ -44,6 +56,39 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
   const [imageError, setImageError] = useState<string | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; index: number } | null>(null);
 
+  // Templates (loaded from API — primary style source for Step 3)
+  const [templates, setTemplates] = useState<PromptTemplate[]>([]);
+  const [activeModel, setActiveModel] = useState<{ name: string; provider: string } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/prompt-templates', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.length > 0) {
+            setTemplates(data);
+            // Auto-select first template if current selection doesn't exist in DB
+            if (!data.find((t: PromptTemplate) => t.template_key === selectedStyle)) {
+              setSelectedStyle(data[0].template_key);
+            }
+          }
+        }
+      } catch { /* use defaults */ }
+    })();
+  }, [token]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/active-model');
+        if (res.ok) setActiveModel(await res.json());
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
   // Toast
   const [toastMsg, setToastMsg] = useState('');
   const [promptCopied, setPromptCopied] = useState(false);
@@ -75,24 +120,49 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
     });
   };
 
+  // Build style options: DB templates first (filtered by card type), fall back to hardcoded presets
+  const styleOptions: Record<string, { name: string; englishKeywords: string; chineseKeywords: string; colorTone: string }> = {};
+  if (templates.length > 0) {
+    // Prefer templates matching current card type, fall back to all templates
+    const matching = templates.filter(t => t.card_type === activeCardType);
+    const source = matching.length > 0 ? matching : templates;
+    source.forEach(t => {
+      styleOptions[t.template_key] = {
+        name: t.name,
+        englishKeywords: t.english_keywords,
+        chineseKeywords: t.chinese_keywords,
+        colorTone: t.color_tone,
+      };
+    });
+    // Auto-select first matching option if current selection isn't available
+    if (!styleOptions[selectedStyle]) {
+      const keys = Object.keys(styleOptions);
+      if (keys.length > 0) setSelectedStyle(keys[0]);
+    }
+  } else {
+    Object.assign(styleOptions, stylePresets);
+  }
+  const currentStyle = styleOptions[selectedStyle];
+
   const generateAIPrompt = () => {
-    const style = stylePresets[selectedStyle];
+    const enKeywords = currentStyle?.englishKeywords || '';
+    const cnKeywords = currentStyle?.chineseKeywords || '';
     const detailsString = sceneDetails.join(', ');
     if (activeCardType === 'cover') {
       return {
-        english: `An elegant, minimalist documentary magazine cover for "HEREIN" magazine. A cinematic shot representing "${sceneTitle}" in "${city}" during ${timePeriod}. Heavy negative space, natural 35mm film grain, ${style.englishKeywords}, authentic feel, nostalgic and peaceful --ar 3:4 --v 6.0 --style raw`,
-        chinese: `《此间》封面美学：在 [${city}] 的 [${timePeriod}]，拍摄能够代表 [${sceneTitle}] 氛围的封面大图。极简构图、留白艺术、35毫米胶片质感、${style.chineseKeywords}，高雅内敛。`
+        english: `An elegant, minimalist documentary magazine cover for "HEREIN" magazine. A cinematic shot representing "${sceneTitle}" in "${city}" during ${timePeriod}. Heavy negative space, natural 35mm film grain, ${enKeywords}, authentic feel, nostalgic and peaceful --ar 3:4 --v 6.0 --style raw`,
+        chinese: `《此间》封面美学：在 [${city}] 的 [${timePeriod}]，拍摄能够代表 [${sceneTitle}] 氛围的封面大图。极简构图、留白艺术、35毫米胶片质感、${cnKeywords}，高雅内敛。`
       };
     }
     if (activeCardType === 'back') {
       return {
-        english: `A quiet, atmospheric abstract documentary photo representing the closing scene of a journey in ${city}. Soft evening light fading, a beautiful solitary texture, nostalgic vibe, ${style.englishKeywords}, highly poetic, quiet wisdom --ar 3:4 --v 6.0 --style raw`,
+        english: `A quiet, atmospheric abstract documentary photo representing the closing scene of a journey in ${city}. Soft evening light fading, a beautiful solitary texture, nostalgic vibe, ${enKeywords}, highly poetic, quiet wisdom --ar 3:4 --v 6.0 --style raw`,
         chinese: `《此间》封底意境：宁静而深邃的城市落幕光影，带着淡淡的余晖与纹理质感。象征一段喧嚣归于平静的生活旅程，具有极高诗意与纪实格调。`
       };
     }
     return {
-      english: `A poignant documentary photograph of ${sceneTitle} in ${city} during ${timePeriod}. Key details captured: ${detailsString}. ${style.englishKeywords}, raw emotion, deeply atmospheric, hyper-realistic, volumetric lighting, shot on 35mm film, masterfully composed, storytelling image, unposed, real life --ar 3:4 --v 6.0 --style raw`,
-      chinese: `《此间》正页美学：在 [${city}] 的 [${timePeriod}]，拍摄 [${sceneTitle}]。画面中包含细节：[${detailsString}]。视觉美学风格：${style.chineseKeywords}，真实的情感流露，浓厚的生活氛围。`
+      english: `A poignant documentary photograph of ${sceneTitle} in ${city} during ${timePeriod}. Key details captured: ${detailsString}. ${enKeywords}, raw emotion, deeply atmospheric, hyper-realistic, volumetric lighting, shot on 35mm film, masterfully composed, storytelling image, unposed, real life --ar 3:4 --v 6.0 --style raw`,
+      chinese: `《此间》正页美学：在 [${city}] 的 [${timePeriod}]，拍摄 [${sceneTitle}]。画面中包含细节：[${detailsString}]。视觉美学风格：${cnKeywords}，真实的情感流露，浓厚的生活氛围。`
     };
   };
 
@@ -175,7 +245,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
 
   const handleCopyPrompt = () => {
     const prompts = generateAIPrompt();
-    copyToClipboard(`【英文提示词】\n${prompts.english}\n\n【中文美学构想】\n${prompts.chinese}\n\n【风格控制】\n${stylePresets[selectedStyle].colorTone}\n尺寸: 3:4`);
+    copyToClipboard(`【英文提示词】\n${prompts.english}\n\n【中文美学构想】\n${prompts.chinese}\n\n【风格控制】\n${currentStyle?.colorTone || ''}\n尺寸: 3:4`);
     setPromptCopied(true);
     setToastMsg('提示词已复制');
     setTimeout(() => setPromptCopied(false), 2000);
@@ -251,7 +321,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
               <button onClick={() => setCurrentStep(4)} className="text-[11px] text-amber-400 hover:text-amber-300 font-medium">下一步 →</button>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(stylePresets).map(([key, style]) => (
+              {Object.entries(styleOptions).map(([key, style]) => (
                 <button
                   key={key}
                   onClick={() => setSelectedStyle(key)}
@@ -262,7 +332,7 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
                   }`}
                 >
                   <div className="font-semibold">{style.name}</div>
-                  <div className="text-[11px] text-zinc-500 mt-1 truncate">{style.colorTone.split('/')[1] || style.colorTone}</div>
+                  <div className="text-[11px] text-zinc-500 mt-1 line-clamp-2">{style.colorTone}</div>
                 </button>
               ))}
             </div>
@@ -271,6 +341,13 @@ export default function GeneratorTab({ initialTitle = '下班后的便利店', i
           {/* Step 4: Generate */}
           <div className={`bg-zinc-900/60 rounded-xl p-6 border ${currentStep === 4 ? 'border-amber-700/60' : 'border-zinc-800'} space-y-4`}>
             <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider block">步骤 4: 生成影像</span>
+            {activeModel && (
+              <div className="flex items-center gap-2 text-[11px] text-zinc-500">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                当前模型：<span className="text-zinc-300 font-medium">{activeModel.name}</span>
+                <span className="text-zinc-600">({activeModel.provider})</span>
+              </div>
+            )}
             <div className="flex gap-2 flex-wrap">
               <button onClick={handleGenerateImage} disabled={generatingImage}
                 className="px-4 py-2.5 rounded bg-amber-500 hover:bg-amber-400 text-zinc-950 text-xs font-bold transition-colors flex items-center gap-2 disabled:opacity-50 min-h-[44px]">

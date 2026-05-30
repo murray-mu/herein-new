@@ -42,7 +42,7 @@ router.post("/register", async (req, res) => {
 
     res.status(201).json({
       token,
-      user: { id: result.insertId, username, displayName: displayName || username, city: city || null },
+      user: { id: result.insertId, username, displayName: displayName || username, city: city || null, isAdmin: false },
     });
   } catch (err) {
     console.error("Register error:", err);
@@ -61,7 +61,7 @@ router.post("/login", async (req, res) => {
     }
 
     const [rows] = await pool.query(
-      "SELECT id, username, email, display_name, city, password_hash FROM users WHERE username = ? OR email = ?",
+      "SELECT id, username, email, display_name, city, password_hash, is_admin FROM users WHERE username = ? OR email = ?",
       [username, username]
     );
 
@@ -90,6 +90,7 @@ router.post("/login", async (req, res) => {
         email: user.email,
         displayName: user.display_name,
         city: user.city,
+        isAdmin: !!user.is_admin,
       },
     });
   } catch (err) {

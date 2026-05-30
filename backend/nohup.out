@@ -1,5 +1,28 @@
-
-> dev
-> node server.js
-
 Server running on http://localhost:3001
+Image generation failed: ApiError: {"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_INVALID","domain":"googleapis.com","metadata":{"service":"generativelanguage.googleapis.com"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"API key not valid. Please pass a valid API key."}]}}
+    at throwErrorIfNotOK (file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:13547:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:13247:13
+    at async Models.generateContent (file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:14655:24)
+    at async generateGemini (file:///opt/herein/backend/server.js:107:20)
+    at async file:///opt/herein/backend/server.js:160:27 {
+  status: 400
+}
+Image generation failed: ApiError: {"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_INVALID","domain":"googleapis.com","metadata":{"service":"generativelanguage.googleapis.com"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"API key not valid. Please pass a valid API key."}]}}
+    at throwErrorIfNotOK (file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:13547:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:13247:13
+    at async Models.generateContent (file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:14655:24)
+    at async generateGemini (file:///opt/herein/backend/server.js:107:20)
+    at async file:///opt/herein/backend/server.js:160:27 {
+  status: 400
+}
+Image generation failed: ApiError: {"error":{"code":400,"message":"API key not valid. Please pass a valid API key.","status":"INVALID_ARGUMENT","details":[{"@type":"type.googleapis.com/google.rpc.ErrorInfo","reason":"API_KEY_INVALID","domain":"googleapis.com","metadata":{"service":"generativelanguage.googleapis.com"}},{"@type":"type.googleapis.com/google.rpc.LocalizedMessage","locale":"en-US","message":"API key not valid. Please pass a valid API key."}]}}
+    at throwErrorIfNotOK (file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:13547:30)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:13247:13
+    at async Models.generateContent (file:///opt/herein/backend/node_modules/@google/genai/dist/node/index.mjs:14655:24)
+    at async generateGemini (file:///opt/herein/backend/server.js:107:20)
+    at async file:///opt/herein/backend/server.js:160:27 {
+  status: 400
+}
